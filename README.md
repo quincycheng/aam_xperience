@@ -23,9 +23,14 @@ sudo apt upgrade
 sudo apt install openssh-server
 ```
 
-2. Install Docker on `conjur` server
+3. Install Docker on `conjur` server
 Please refer to https://docs.docker.com/install/linux/docker-ce/ubuntu/ for details
 
+4. Install `docker-compose` on `conjur` server 
+
+```
+sudo apt install docker-compose
+```
 
 ## Steps 
 
@@ -82,26 +87,58 @@ create a playbook, called playbook.yml
     - debug: msg="I am {{ theuser.stdout }} at {{ thehost.stdout }}"
 ```
 
+To disable host key checking
+```
+export ANSIBLE_HOST_KEY_CHECKING=False
+````
+
+Let's try the playbook
+```
+ansible-playbook -i inventory playbook.yml
+````
+
+---
+
+Let's secure it
+
+## Install Conjur OSS
+
+ref: https://www.conjur.org/get-started/quick-start/oss-environment/
+
+```
+git clone https://github.com/cyberark/conjur-quickstart.git
+cd conjur-quickstart
+docker-compose pull
+docker-compose run --no-deps --rm conjur data-key generate > data_key
+export CONJUR_DATA_KEY="$(< data_key)"
+docker-compose up -d
+docker ps -a
+docker-compose exec conjur conjurctl account create myConjurAccount > admin_data
+docker-compose exec client conjur init -u conjur -a myConjurAccount
+```
+
+The admin password is located in `admin_data` file
+```
+cat admin_data
+```
+
+Login as Conjur admin
+```
+docker-compose exec client conjur authn login -u admin
+```
 
 
 
 
 
+Update inventory file
+```
+[db_servers]
+host-1
+host-2
+```
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-create a playbook, called playbook.yml
+Update playbook.yml
 ```
 - hosts: db_servers
   roles:
