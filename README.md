@@ -96,9 +96,6 @@ Let's try the playbook
 ansible-playbook -i inventory playbook.yml
 ````
 
----
-
-Let's secure it
 
 ## The risk
 
@@ -232,33 +229,34 @@ docker-compose exec client conjur variable values add db/host2/pass "5;LF+J4Rfqd
 
 ### Integrating Ansible
 
-Setting up Role & Lookup plugin
+#### Setting up Role & Lookup plugin
 ```
 ansible-galaxy install cyberark.conjur-lookup-plugin
 ```
 
-```
-export CONJUR_ACCOUNT=“myConjurAccount”
-export CONJUR_APPLIANCE_URL="https://conjur:8443/“
-export CONJUR_AUTHN_LOGIN="host/ansible/ansible-01"
-export CONJUR_AUTHN_API_KEY="$(tail -n +2 ansible.out | jq -r '.created_roles."myConjurAccount:host:ansible/ansible-01".api_key')"
-```
+
+#### Configure SSL and Conjur settings
+
 ```
 openssl s_client -showcerts -connect conjur:8443 < /dev/null 2> /dev/null | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' > conjur-demo.pem
 export CONJUR_CERT_FILE="$PWD/conjur-demo.pem"
+export CONJUR_ACCOUNT=“myConjurAccount”
+export CONJUR_APPLIANCE_URL="https://localhost:8443/“
+export CONJUR_AUTHN_LOGIN="host/ansible/ansible-01"
+export CONJUR_AUTHN_API_KEY="$(tail -n +2 ansible.out | jq -r '.created_roles."myConjurAccount:host:ansible/ansible-01".api_key')"
 ```
 
 ### Updating Ansible Inventory & Playbook
 
 
-Update inventory file
+#### Update inventory file
 ```
 [db_servers]
 host-1
 host-2
 ```
 
-Update playbook.yml
+#### Update playbook.yml
 ```
 - hosts: db_servers
   roles:
@@ -279,4 +277,9 @@ Update playbook.yml
       register: thehost
 
     - debug: msg="I am {{ theuser.stdout }} at {{ thehost.stdout }}"
+```
+
+#### Let's run the playbook
+```
+ansible-playbook -i inventory playbook.yml
 ```
