@@ -26,9 +26,9 @@ sudo apt install openssh-server
 4. Install Docker on `conjur` server
 Please refer to https://docs.docker.com/install/linux/docker-ce/ubuntu/ for details
 
-5. Install `docker-compose` on `conjur` server 
+5. Install `docker-compose` & `jq` on `conjur` server 
 ```
-sudo apt install docker-compose
+sudo apt install docker-compose jq
 ```
 
 ## Managing the servers using Ansible 
@@ -279,7 +279,7 @@ host-2
     - debug: msg="I am {{ theuser.stdout }} at {{ thehost.stdout }}"
 ```
 
-#### Let's run the playbook
+#### Let's run the playbook again
 ```
 ansible-playbook -i inventory playbook.yml
 ```
