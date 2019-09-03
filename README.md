@@ -181,31 +181,41 @@ db.yml
 
 Load root policy
 ```
-docker cp conjur.yml root_client_1:/tmp/
+docker cp conjur.yml conjur_client:/tmp/
 docker-compose exec client conjur policy load --replace root /tmp/conjur.yml
 ```
 
 Load ansible Policy
 ```
-docker cp ansible.yml root_client_1:/tmp/
+docker cp ansible.yml conjur_client_1:/tmp/
 docker-compose exec client conjur policy load ansible /tmp/ansible.yml | tee ansible.out
 
 ```
 Load db Policy
 ```
-docker cp db.yml root_client_1:/tmp/
+docker cp db.yml conjur_client_1:/tmp/
 docker-compose exec client conjur policy load db /tmp/db.yml
 ```
 
 Let's create secrets and add them to Conjur
 
-Host 1 IP: `docker-compose exec client conjur variable values add db/host1/host "host-1" `
-Host 1 user name: `docker-compose exec client conjur variable values add db/host1/user "service01" `
-Host 1 password: `docker-compose exec client conjur variable values add db/host1/pass "W/4m=cS6QSZSc*nd"`
+Host 1 IP: 
+`docker-compose exec client conjur variable values add db/host1/host "host-1" `
 
-Host 2 IP: `docker-compose exec client conjur variable values add db/host2/host "host-2" `
-Host 2 user name: `docker-compose exec client conjur variable values add db/host2/user "service02" `
-Host 2 password: `docker-compose exec client conjur variable values add db/host2/pass "5;LF+J4Rfqds:DZ8"`
+Host 1 user name: 
+`docker-compose exec client conjur variable values add db/host1/user "service01" `
+
+Host 1 password: 
+`docker-compose exec client conjur variable values add db/host1/pass "W/4m=cS6QSZSc*nd"`
+
+Host 2 IP: 
+`docker-compose exec client conjur variable values add db/host2/host "host-2" `
+
+Host 2 user name: 
+`docker-compose exec client conjur variable values add db/host2/user "service02" `
+
+Host 2 password: 
+`docker-compose exec client conjur variable values add db/host2/pass "5;LF+J4Rfqds:DZ8"`
 
 
 
