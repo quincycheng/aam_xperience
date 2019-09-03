@@ -12,27 +12,26 @@ At the end of the session, the risk of embedded secrets will be elmimated.
 
 ## What have been prepared
 1. Install 3 Ubuntu 18.04 LTS systems, named `conjur`,`host-1` and `host-2`
-1. System Update on all three servers
+2. System Update on all three servers
 ```
 sudo apt update
 sudo apt upgrade
 ```
 
-2. Install openssl on `host-1` & `host-2`
+3. Install openssl on `host-1` & `host-2`
 ```
 sudo apt install openssh-server
 ```
 
-3. Install Docker on `conjur` server
+4. Install Docker on `conjur` server
 Please refer to https://docs.docker.com/install/linux/docker-ce/ubuntu/ for details
 
-4. Install `docker-compose` on `conjur` server 
-
+5. Install `docker-compose` on `conjur` server 
 ```
 sudo apt install docker-compose
 ```
 
-## Steps 
+## Managing the servers using Ansible 
 
 1. Let's install Ansible on `conjur` server
 ref: https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html#latest-releases-via-apt-ubuntu
@@ -101,7 +100,16 @@ ansible-playbook -i inventory playbook.yml
 
 Let's secure it
 
-## Install Conjur OSS
+## The risk
+
+- Who's view the secrets?
+- When the secrets are used?
+- How to rotate the secrets?
+- What are auditing?
+
+## Securing 
+
+### Install Conjur OSS
 
 ref: https://www.conjur.org/get-started/quick-start/oss-environment/
 
@@ -127,8 +135,88 @@ Login as Conjur admin
 docker-compose exec client conjur authn login -u admin
 ```
 
+### Loading Policy & Secrets to Conjur
+
+Policy: root.yml
+
+```
+- !policy
+  id: db
+
+- !policy
+  id: ansible
+```
+
+Policy: db.yaml
+```
+- &variables
+  - !variable host1/host
+  - !variable host1/user
+  - !variable host1/pass
+  - !variable host2/host
+  - !variable host2/user
+  - !variable host2/pass
+
+- !group secrets-users
+
+- !permit
+  resource: *variables
+  privileges: [ read, execute ]
+  roles: !group secrets-users
+
+# Entitlements 
+- !grant
+  role: !group secrets-users
+  member: !layer /ansible
+```
+
+db.yml
+```
+- !layer
+- !host ansible-01
+- !grant
+  role: !layer
+  member: !host ansible-01
+```
+
+Let's create secrets and add them to Conjur
+
+Host 1 IP: `docker-compose exec client conjur variable values add db/host1/host "host-1" `
+Host 1 user name: `docker-compose exec client conjur variable values add db/host1/user "service01" `
+Host 1 password: `docker-compose exec client conjur variable values add db/host1/pass "W/4m=cS6QSZSc*nd"`
+
+Host 2 IP: `docker-compose exec client conjur variable values add db/host2/host "host-2" `
+Host 2 user name: `docker-compose exec client conjur variable values add db/host2/user "service02" `
+Host 2 password: `docker-compose exec client conjur variable values add db/host2/pass "5;LF+J4Rfqds:DZ8"`
 
 
+Load root policy
+```
+docker cp conjur.yml root_client_1:/tmp/
+docker-compose exec client conjur policy load --replace root /tmp/conjur.yml
+```
+
+Load ansible Policy
+```
+docker cp ansible.yml root_client_1:/tmp/
+docker-compose exec client conjur policy load ansible /tmp/ansible.yml | tee ansible.out
+```
+Load db Policy
+```
+docker cp db.yml root_client_1:/tmp/
+docker-compose exec client conjur policy load db /tmp/db.yml
+```
+
+
+### Integrating Ansible
+
+Setting up Role & Lookup plugin
+```
+ansible-galaxy install cyberark.conjur-lookup-plugin
+```
+
+
+### Updating Ansible Inventory & Playbook
 
 
 Update inventory file
