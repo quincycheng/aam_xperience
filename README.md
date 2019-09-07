@@ -288,3 +288,11 @@ host2
 ```
 ansible-playbook -i inventory playbook.yml
 ```
+
+### Cleanup
+
+If you want to try it again, you can remote the files created after execute the following commands to remove the Conjur containers:
+
+```
+docker-compose down
+```
