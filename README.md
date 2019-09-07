@@ -257,8 +257,8 @@ export CONJUR_AUTHN_API_KEY="$(tail -n +2 ansible.out | jq -r '.created_roles."m
 #### Update inventory file
 ```
 [db_servers]
-host-1
-host-2
+host1
+host2
 ```
 
 #### Update playbook.yml
