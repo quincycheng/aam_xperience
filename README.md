@@ -237,11 +237,16 @@ ansible-galaxy install cyberark.conjur-lookup-plugin
 
 #### Configure SSL and Conjur settings
 
+Download the SSL Certificate 
 ```
 openssl s_client -showcerts -connect conjur:8443 < /dev/null 2> /dev/null | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' > conjur-demo.pem
+```
+
+
+```
 export CONJUR_CERT_FILE="$PWD/conjur-demo.pem"
-export CONJUR_ACCOUNT=“myConjurAccount”
-export CONJUR_APPLIANCE_URL="https://localhost:8443/“
+export CONJUR_ACCOUNT="myConjurAccount"
+export CONJUR_APPLIANCE_URL="https://localhost:8443/"
 export CONJUR_AUTHN_LOGIN="host/ansible/ansible-01"
 export CONJUR_AUTHN_API_KEY="$(tail -n +2 ansible.out | jq -r '.created_roles."myConjurAccount:host:ansible/ansible-01".api_key')"
 ```
