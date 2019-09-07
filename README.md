@@ -103,10 +103,11 @@ ansible-playbook -i inventory playbook.yml
 - How to rotate the secrets?
 - What are auditing?
 
-## Securing 
+## Securing the environment
 
-### Install Conjur OSS on `conjur`
+### Install Conjur OSS 
 
+We will install Conjur OSS on `conjur` for securing the secrets
 ref: https://www.conjur.org/get-started/quick-start/oss-environment/
 
 ```
