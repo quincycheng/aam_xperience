@@ -144,7 +144,7 @@ Policy: root.yml
   id: ansible
 ```
 
-Policy: db.yaml
+Policy: db.yml
 ```
 - &variables
   - !variable host1/host
@@ -167,7 +167,7 @@ Policy: db.yaml
   member: !layer /ansible
 ```
 
-db.yml
+ansible.yml
 ```
 - !layer
 - !host ansible-01
@@ -178,8 +178,8 @@ db.yml
 
 Load root policy
 ```
-docker cp conjur.yml conjur_client:/tmp/
-docker-compose exec client conjur policy load --replace root /tmp/conjur.yml
+docker cp root.yml conjur_client:/tmp/
+docker-compose exec client conjur policy load --replace root /tmp/root.yml
 ```
 
 Load ansible Policy
