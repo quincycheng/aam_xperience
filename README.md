@@ -18,7 +18,7 @@ sudo apt update
 sudo apt upgrade
 ```
 
-3. Install openssl on `host-1` & `host-2`
+3. Install openssh on `host-1` & `host-2`
 ```
 sudo apt install openssh-server
 ```
@@ -37,7 +37,6 @@ sudo apt install docker-compose jq
 ref: https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html#latest-releases-via-apt-ubuntu
 
 ```
-sudo apt update
 sudo apt install software-properties-common
 sudo apt-add-repository --yes --update ppa:ansible/ansible
 sudo apt install ansible
@@ -62,7 +61,7 @@ Enter new UNIX password: 5;LF+J4Rfqds:DZ8
 Retype new UNIX password: 5;LF+J4Rfqds:DZ8
 ```
 
-3. Create `inventory` & playbooks
+3. Create `inventory` & `playbook.yml` on `conjur`
 
 create an inventory file
 ```
@@ -106,7 +105,7 @@ ansible-playbook -i inventory playbook.yml
 
 ## Securing 
 
-### Install Conjur OSS
+### Install Conjur OSS on `conjur`
 
 ref: https://www.conjur.org/get-started/quick-start/oss-environment/
 
@@ -134,8 +133,11 @@ docker-compose exec client conjur authn login -u admin
 
 ### Loading Policy & Secrets to Conjur
 
-Policy: root.yml
+First, a top-level policy defines two empty policies: `db` and` ansible`. Save this policy as “root.yml”:
 
+`nano root.yml`
+
+Content of `root.yml`
 ```
 - !policy
   id: db
@@ -144,7 +146,15 @@ Policy: root.yml
   id: ansible
 ```
 
-Policy: db.yml
+Press `Ctrl-x` to save & quit
+
+Then create the `db` policy by 
+```
+nano db.yml
+```
+
+This policy will create the target system information.
+Content of `db.yml`
 ```
 - &variables
   - !variable host1/host
@@ -166,8 +176,15 @@ Policy: db.yml
   role: !group secrets-users
   member: !layer /ansible
 ```
+Press `Ctrl-x` to save & quit
 
-ansible.yml
+And we will create an `ansible.yml` to retreive the secrets.
+To create `ansible.yml`, execute:
+```
+nano ansible.yml
+```
+
+Content of `ansible.yml`
 ```
 - !layer
 - !host ansible-01
@@ -175,20 +192,23 @@ ansible.yml
   role: !layer
   member: !host ansible-01
 ```
+Press `Ctrl-x` to save & quit
 
-Load root policy
+
+
+Load `root` policy to conjur
 ```
 docker cp root.yml conjur_client:/tmp/
 docker-compose exec client conjur policy load --replace root /tmp/root.yml
 ```
 
-Load ansible Policy
+Load `ansible` policy to conjur
 ```
 docker cp ansible.yml conjur_client:/tmp/
 docker-compose exec client conjur policy load ansible /tmp/ansible.yml | tee ansible.out
 
 ```
-Load db Policy
+Load `db` policy to conjur
 ```
 docker cp db.yml conjur_client:/tmp/
 docker-compose exec client conjur policy load db /tmp/db.yml
@@ -196,7 +216,7 @@ docker-compose exec client conjur policy load db /tmp/db.yml
 
 Let's create secrets and add them to Conjur
 
-Host 1 IP: 
+Host 1 host name: 
 ```
 docker-compose exec client conjur variable values add db/host1/host "host-1" 
 ```
@@ -211,7 +231,7 @@ Host 1 Password:
 docker-compose exec client conjur variable values add db/host1/pass "W/4m=cS6QSZSc*nd"
 ```
 
-Host 2 IP: 
+Host 2 host anme: 
 ```
 docker-compose exec client conjur variable values add db/host2/host "host-2" 
 ```
@@ -242,7 +262,7 @@ Download the SSL Certificate
 openssl s_client -showcerts -connect conjur:8443 < /dev/null 2> /dev/null | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' > conjur-demo.pem
 ```
 
-
+Configure Conjur
 ```
 export CONJUR_CERT_FILE="$PWD/conjur-demo.pem"
 export CONJUR_ACCOUNT="myConjurAccount"
@@ -252,6 +272,7 @@ export CONJUR_AUTHN_API_KEY="$(tail -n +2 ansible.out | jq -r '.created_roles."m
 ```
 
 ### Updating Ansible Inventory & Playbook
+Let's create a set of ansible inventory & playbook files, without embedding any secrets
 
 
 #### Update inventory file
@@ -291,8 +312,11 @@ ansible-playbook -i inventory playbook.yml
 
 ### Cleanup
 
-If you want to try it again, you can remote the files created after execute the following commands to remove the Conjur containers:
+If you want to try it again, you can preform the following actions:
 
-```
-docker-compose down
-```
+- Remote the files created 
+- On `conjur`. execute `docker-compose down` to remove the conjur containers
+- On `host-1`, exeucte `sudo userdel service01`
+- On `host-2`, exeucte `sudo userdel service02`
+
+
