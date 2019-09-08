@@ -1,16 +1,16 @@
-# AAM Xperience
+# AAM Xperience Workshop
 
-Welcome again to AAM Xperience!   This page contains everything you need for the hands-on session.
+Welcome again to CyberArk AAM Xperience Workshop!   This page contains everything you need for the hands-on session.
 
-## Our goal 
-Let's install an configuration management tool for managing our servers.
-We will use Ansible as an example.
-First we will simply configure it without securing the embedded secrets and show you the risk.
-Then we will install Conjur and integrate it with Ansible.
-At the end of the session, the risk of embedded secrets will be elmimated. 
+## Session Goal 
+Today we will install Ansible, a configuration management tool for managing our servers.
+At first, we will simply configure Ansible without securing the embedded secrets and discuss the risk involved with storing cleartext credentials.
+Then we will then install Conjur and integrate it with Ansible. At the end of the session we will see how the risk of embedded secrets will be eliminated by using Conjur.
 
 
-## What have been prepared
+## Environment Preparation
+If you are running this lab on your own machine and not CyberArk's SkyTap environment, follow below steps to create a new lab envirnment.
+
 1. Install 3 Ubuntu 18.04 LTS systems, named `conjur`,`host-1` and `host-2`
 2. System Update on all three servers
 ```
@@ -24,7 +24,7 @@ sudo apt install openssh-server
 ```
 
 4. Install Docker on `conjur` server
-Please refer to https://docs.docker.com/install/linux/docker-ce/ubuntu/ for details
+Please refer to https://docs.docker.com/install/linux/docker-ce/ubuntu/ for installation details and commands.
 
 5. Install `docker-compose` & `jq` on `conjur` server 
 ```
@@ -32,17 +32,21 @@ sudo apt install docker-compose jq
 ```
 
 ## Managing the servers using Ansible 
+In this section we see how Ansible is used to manage the severs remotely.
 
 1. Let's install Ansible on `conjur` server
-ref: https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html#latest-releases-via-apt-ubuntu
 
+Run below commands to install ansible.
 ```
 sudo apt install software-properties-common
 sudo apt-add-repository --yes --update ppa:ansible/ansible
 sudo apt install ansible
 ```
+ref: https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html#latest-releases-via-apt-ubuntu
 
 2. Create service accounts on `host-1` & `host-2`
+
+Note: The passwords that are set here will be used later on by Ansible.
 
 On `host-1`:
 ```
@@ -61,16 +65,29 @@ Enter new UNIX password: 5;LF+J4Rfqds:DZ8
 Retype new UNIX password: 5;LF+J4Rfqds:DZ8
 ```
 
-3. Create `inventory` & `playbook.yml` on `conjur`
+3. Create `inventory` & `playbook.yml` on `conjur` host
 
-create an inventory file
+Create an inventory file
+```
+vi inventory
+```
+
+Insert below content in the `inventory` file. Note that we are storing credentials in cleartext format in a config file.
+
 ```
 [db_servers]
 host-1 ansible_connection=ssh ansible_ssh_user=service01 ansible_ssh_pass=W/4m=cS6QSZSc*nd
 host-2 ansible_connection=ssh ansible_ssh_user=service02 ansible_ssh_pass=5;LF+J4Rfqds:DZ8
 ```
 
-create a playbook, called playbook.yml
+
+Create a playbook, called `playbook.yml`. 
+```
+vi playbook.yml
+```
+
+Insert below content in the `playbook.yml` file. This playbook finds the username and hostname on the target machine and print son the screen.
+
 ```
 - hosts: db_servers
   tasks:
@@ -85,30 +102,36 @@ create a playbook, called playbook.yml
     - debug: msg="I am {{ theuser.stdout }} at {{ thehost.stdout }}"
 ```
 
-To disable host key checking
+Disable host key checking by running in command:
+
 ```
 export ANSIBLE_HOST_KEY_CHECKING=False
 ````
 
-Let's try the playbook
+Let's try running the playbook and test connectivity:
+
 ```
 ansible-playbook -i inventory playbook.yml
 ````
 
 
 ## The risk
+Looking at what we have just done, think about the questions below and discuss the risks involved.
 
-- Who's view the secrets?
-- When the secrets are used?
-- How to rotate the secrets?
-- What are auditing?
+-	Who can view the secrets stored in the plaintext file?
+-	At which part of the process the secrets are used?
+-	How can we rotate the secrets?
+-	Is this process being audited?
 
-## Securing the environment
+
+## Securing the Environment
 
 ### Install Conjur OSS 
 
-We will install Conjur OSS on `conjur` for securing the secrets
-ref: https://www.conjur.org/get-started/quick-start/oss-environment/
+We now install Conjur OSS on `conjur` for securing the secrets.
+Refer to the link below for more detail on Conjur OpenSource Software: https://www.conjur.org/get-started/quick-start/oss-environment/
+
+Run these commands to download and setup Conjur OSS. Make sure you run the commands individually and inspect successful completion before moving to the next coommand.
 
 ```
 git clone https://github.com/cyberark/conjur-quickstart.git
@@ -122,23 +145,26 @@ docker-compose exec conjur conjurctl account create myConjurAccount > admin_data
 docker-compose exec client conjur init -u conjur -a myConjurAccount
 ```
 
-The admin password is located in `admin_data` file
+The admin password can be found in `admin_data` file:
+
 ```
 cat admin_data
 ```
 
-Login as Conjur admin
+Now login as Conjur admin:
+
 ```
 docker-compose exec client conjur authn login -u admin
 ```
 
 ### Loading Policy & Secrets to Conjur
 
-First, a top-level policy defines two empty policies: `db` and` ansible`. Save this policy as “root.yml”:
+The first step is to create a top-level policy that defines two empty policies: `db` and` ansible`. Save this policy as `root.yml`:
 
-`nano root.yml`
+`vi root.yml`
 
-Content of `root.yml`
+Add below content to `root.yml`:
+
 ```
 - !policy
   id: db
@@ -147,15 +173,17 @@ Content of `root.yml`
   id: ansible
 ```
 
-Press `Ctrl-x` to save & quit
+Save and exit the file.
 
-Then create the `db` policy by 
+Then create the `db` policy. This policy will create the target system information.
+
 ```
-nano db.yml
+vi db.yml
 ```
 
-This policy will create the target system information.
-Content of `db.yml`
+
+Add below content to `db.yml` file:
+
 ```
 - &variables
   - !variable host1/host
@@ -177,15 +205,17 @@ Content of `db.yml`
   role: !group secrets-users
   member: !layer /ansible
 ```
-Press `Ctrl-x` to save & quit
+Save and close the file.
 
-And we will create an `ansible.yml` to retreive the secrets.
-To create `ansible.yml`, execute:
+
+We now create the `ansible.yml` to be used to retreive the secrets from Conjur.
+
 ```
-nano ansible.yml
+vi ansible.yml
 ```
 
-Content of `ansible.yml`
+Add below content to `ansible.yml`:
+
 ```
 - !layer
 - !host ansible-01
@@ -193,56 +223,61 @@ Content of `ansible.yml`
   role: !layer
   member: !host ansible-01
 ```
-Press `Ctrl-x` to save & quit
 
+Save and exit the file.
 
+We now load all the policies that have just been created to Conjur.
 
-Load `root` policy to conjur
+Load `root` policy to conjur:
+
 ```
 docker cp root.yml conjur_client:/tmp/
 docker-compose exec client conjur policy load --replace root /tmp/root.yml
 ```
 
-Load `ansible` policy to conjur
+Load `ansible` policy to conjur:
+
 ```
 docker cp ansible.yml conjur_client:/tmp/
 docker-compose exec client conjur policy load ansible /tmp/ansible.yml | tee ansible.out
 
 ```
-Load `db` policy to conjur
+
+Load `db` policy to conjur:
+
 ```
 docker cp db.yml conjur_client:/tmp/
 docker-compose exec client conjur policy load db /tmp/db.yml
 ```
 
-Let's create secrets and add them to Conjur
+Our final step is to create secrets and add them to Conjur. These secrets will be used later on by Ansible to connect to the target hosts.
 
 Host 1 host name: 
 ```
 docker-compose exec client conjur variable values add db/host1/host "host-1" 
 ```
 
-Host 1 User name: 
+Host 1 user name: 
 ```
 docker-compose exec client conjur variable values add db/host1/user "service01" 
 ```
 
-Host 1 Password: 
+Host 1 password: 
 ```
 docker-compose exec client conjur variable values add db/host1/pass "W/4m=cS6QSZSc*nd"
 ```
 
-Host 2 host anme: 
+Host 2 host name: 
 ```
 docker-compose exec client conjur variable values add db/host2/host "host-2" 
 ```
 
-Host 2 User name: 
+Host 2 user name: 
 ```
 docker-compose exec client conjur variable values add db/host2/user "service02" 
 ```
 
-Host 2 Password: 
+Host 2 password: 
 ```
 docker-compose exec client conjur variable values add db/host2/pass "5;LF+J4Rfqds:DZ8"
 ```
@@ -250,7 +285,11 @@ docker-compose exec client conjur variable values add db/host2/pass "5;LF+J4Rfqd
 
 ### Integrating Ansible
 
+In this section we integrate Ansible with Conjur and see how we can retrieve credentials from Confur and remove the embedded secrets from the Ansible inventory file.
+
 #### Setting up Role & Lookup plugin
+The first step is to install a Conjur Ansible role. This is essentially a plugin for Ansible to work with Conjur.
+
 ```
 ansible-galaxy install cyberark.conjur-lookup-plugin
 ```
@@ -258,12 +297,13 @@ ansible-galaxy install cyberark.conjur-lookup-plugin
 
 #### Configure SSL and Conjur settings
 
-Download the SSL Certificate 
+Download the SSL Certificate from the Conjur service and export to a pem file.
 ```
 openssl s_client -showcerts -connect conjur:8443 < /dev/null 2> /dev/null | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' > conjur-demo.pem
 ```
 
-Configure Conjur
+Configure Conjur by exporting a number of environmental variables to the system. Run below commands:
+
 ```
 export CONJUR_CERT_FILE="$PWD/conjur-demo.pem"
 export CONJUR_ACCOUNT="myConjurAccount"
@@ -273,10 +313,11 @@ export CONJUR_AUTHN_API_KEY="$(tail -n +2 ansible.out | jq -r '.created_roles."m
 ```
 
 ### Updating Ansible Inventory & Playbook
-Let's create a set of ansible inventory & playbook files, without embedding any secrets
-
+We now update the ansible inventory & playbook files that was created earlier and remove the embeded secrets in the inventory file.
 
 #### Update inventory file
+Open the inventory file and remove existing content under `[db_servers]`. Add two new lines as per below. Note the hostnames are `host1` and `host2` without a `-`.
+
 ```
 [db_servers]
 host1
@@ -284,6 +325,8 @@ host2
 ```
 
 #### Update playbook.yml
+Now open the `playbook.yml` file and replace the existing content with below. Note that we now have added a `lookup` function that retrieves credentials dynamically from Conjur in runtime.
+
 ```
 - hosts: db_servers
   roles:
@@ -306,18 +349,19 @@ host2
     - debug: msg="I am {{ theuser.stdout }} at {{ thehost.stdout }}"
 ```
 
-#### Let's run the playbook again
+#### Run the playbook again
+It's now time to run the playbook again and observe that the same results can be achieved without embedded credentials, and by dynamically retrieving secrets from Conjur. 
+
 ```
 ansible-playbook -i inventory playbook.yml
 ```
 
 ### Cleanup
 
-If you want to try it again, you can preform the following actions:
+If you want to try it again, you can preform the following actions to cleanup the environment:
 
-- Remote the files created 
+- Delete the files created 
 - On `conjur`. execute `docker-compose down` to remove the conjur containers
 - On `host-1`, exeucte `sudo userdel service01`
 - On `host-2`, exeucte `sudo userdel service02`
-
 
